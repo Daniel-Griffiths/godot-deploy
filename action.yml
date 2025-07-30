@@ -1,0 +1,187 @@
+name: "Godot Build"
+description: "Install Godot and build applications for Windows, macOS, Linux, and Web with optional itch.io upload"
+
+inputs:
+  godot-version:
+    description: "The version of Godot to build with"
+    required: true
+    default: "4.4"
+  godot-channel:
+    description: "The release channel (stable, beta1, rc1, etc.)"
+    required: false
+    default: "stable"
+  build-dir:
+    description: "The chosen build directory"
+    required: false
+    default: "build"
+  platforms:
+    description: "Platforms to build for (comma-separated: macos,windows,linux,web)"
+    required: false
+    default: "macos,windows,linux,web"
+  itch-io-api-key:
+    description: "Itch.io API key for publishing"
+    required: false
+  itch-io-user:
+    description: "Itch.io username"
+    required: false
+  itch-io-game:
+    description: "Itch.io game name"
+    required: false
+
+outputs:
+  godot-executable:
+    description: "The installed executable location"
+    value: ${{ steps.assign-executable.outputs.GODOT_EXECUTABLE }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Godot
+      shell: bash
+      run: |
+        curl -L -o ./godot.zip "https://github.com/godotengine/godot-builds/releases/download/${{ inputs.godot-version }}-${{ inputs.godot-channel }}/Godot_v${{ inputs.godot-version }}-${{ inputs.godot-channel }}_macos.universal.zip"
+        unzip ./godot.zip
+        sudo mkdir -p /Applications
+        sudo mv ./Godot.app /Applications/Godot.app
+
+    - name: Install Godot templates
+      shell: bash
+      env:
+        GODOT_TEMPLATES_DIR: /Users/runner/Library/Application Support/Godot/export_templates
+      run: |
+        curl -L -o ./godot-templates.zip "https://github.com/godotengine/godot-builds/releases/download/${{ inputs.godot-version }}-${{ inputs.godot-channel }}/Godot_v${{ inputs.godot-version }}-${{ inputs.godot-channel }}_export_templates.tpz"
+        unzip ./godot-templates.zip
+        mkdir -p "$GODOT_TEMPLATES_DIR"
+        mv ./templates "$GODOT_TEMPLATES_DIR/${{ inputs.godot-version }}.${{ inputs.godot-channel }}"
+
+    - name: Report back the executable location
+      shell: bash
+      env:
+        GODOT_EXECUTABLE: /Applications/Godot.app/Contents/MacOS/Godot
+      run: echo "GODOT_EXECUTABLE=${{ env.GODOT_EXECUTABLE }}" >> $GITHUB_OUTPUT
+      id: assign-executable
+
+    - name: Setup export directories
+      shell: bash
+      run: |
+        # Use hardcoded paths for desktop platforms, but parse Web path from export_presets.cfg
+        echo "MACOS_EXPORT_DIR=${{ inputs.build-dir }}/macos" >> $GITHUB_ENV
+        echo "WINDOWS_EXPORT_DIR=${{ inputs.build-dir }}/windows" >> $GITHUB_ENV
+        echo "LINUX_EXPORT_DIR=${{ inputs.build-dir }}/linux" >> $GITHUB_ENV
+
+        # Parse Web export path from export_presets.cfg
+        if [ -f "export_presets.cfg" ]; then
+          WEB_PATH=$(grep -A 20 'name="Web"' export_presets.cfg | grep 'export_path=' | sed 's/.*export_path="\([^"]*\)".*/\1/' | head -1 || true)
+          WEB_DIR=$(dirname "${WEB_PATH:-${{ inputs.build-dir }}/web/index.html}")
+          echo "WEB_EXPORT_DIR=$WEB_DIR" >> $GITHUB_ENV
+          echo "Web export directory: $WEB_DIR (from: $WEB_PATH)"
+        else
+          echo "WEB_EXPORT_DIR=${{ inputs.build-dir }}/web" >> $GITHUB_ENV
+          echo "No export_presets.cfg found, using default web path"
+        fi
+
+        echo "Using export directories:"
+        echo "  macOS: ${{ inputs.build-dir }}/macos"
+        echo "  Windows: ${{ inputs.build-dir }}/windows" 
+        echo "  Linux: ${{ inputs.build-dir }}/linux"
+
+    - name: Open Godot editor for reimport
+      shell: bash
+      run: /Applications/Godot.app/Contents/MacOS/Godot --import --headless --verbose
+
+    - name: Build macOS application
+      if: contains(inputs.platforms, 'macos')
+      shell: bash
+      run: |
+        mkdir -p ${{ inputs.build-dir }}/macos
+        /Applications/Godot.app/Contents/MacOS/Godot --export-release macOS --headless
+        [ "$(ls -A ${{ inputs.build-dir }}/macos)" ]
+
+    - name: Compress macOS build (to preserve permissions)
+      if: contains(inputs.platforms, 'macos')
+      shell: bash
+      run: |
+        cd ${{ inputs.build-dir }}/macos
+        tar -cvf ./macos.tar --exclude='*.command' ./*
+
+    - name: Build Windows application
+      if: contains(inputs.platforms, 'windows')
+      shell: bash
+      run: |
+        mkdir -p ${{ inputs.build-dir }}/windows
+        /Applications/Godot.app/Contents/MacOS/Godot --export-release Windows --headless
+        [ "$(ls -A ${{ inputs.build-dir }}/windows)" ]
+
+    - name: Compress Windows build
+      if: contains(inputs.platforms, 'windows')
+      shell: bash
+      run: |
+        cd ${{ inputs.build-dir }}/windows
+        zip -m ./windows.zip ./*
+
+    - name: Build Linux application
+      if: contains(inputs.platforms, 'linux')
+      shell: bash
+      run: |
+        mkdir -p ${{ inputs.build-dir }}/linux
+        /Applications/Godot.app/Contents/MacOS/Godot --export-release Linux --headless
+        [ "$(ls -A ${{ inputs.build-dir }}/linux)" ]
+
+    - name: Compress Linux build (to preserve permissions)
+      if: contains(inputs.platforms, 'linux')
+      shell: bash
+      run: |
+        cd ${{ inputs.build-dir }}/linux
+        tar -cvf ./linux.tar ./*
+
+    - name: Build Web application
+      if: contains(inputs.platforms, 'web')
+      shell: bash
+      run: |
+        mkdir -p "$WEB_EXPORT_DIR"
+        /Applications/Godot.app/Contents/MacOS/Godot --export-release Web --headless
+        [ "$(ls -A "$WEB_EXPORT_DIR")" ]
+
+    - name: Compress Web build
+      if: contains(inputs.platforms, 'web')
+      shell: bash
+      run: |
+        cd "$WEB_EXPORT_DIR"
+        zip -r ./web.zip ./*
+
+    - name: Install butler for itch.io upload
+      if: inputs.itch-io-api-key && inputs.itch-io-user && inputs.itch-io-game
+      shell: bash
+      run: |
+        curl -L -o butler.zip https://broth.itch.ovh/butler/darwin-amd64/LATEST/archive/default
+        unzip butler.zip
+        chmod +x butler
+        export BUTLER_API_KEY="${{ inputs.itch-io-api-key }}"
+
+    - name: Upload macOS build to itch.io
+      if: contains(inputs.platforms, 'macos') && inputs.itch-io-api-key && inputs.itch-io-user && inputs.itch-io-game
+      shell: bash
+      run: |
+        export BUTLER_API_KEY="${{ inputs.itch-io-api-key }}"
+        ./butler push "${{ inputs.build-dir }}/macos/macos.tar" ${{ inputs.itch-io-user }}/${{ inputs.itch-io-game }}:mac
+
+    - name: Upload Windows build to itch.io
+      if: contains(inputs.platforms, 'windows') && inputs.itch-io-api-key && inputs.itch-io-user && inputs.itch-io-game
+      shell: bash
+      run: |
+        export BUTLER_API_KEY="${{ inputs.itch-io-api-key }}"
+        ./butler push "${{ inputs.build-dir }}/windows/windows.zip" ${{ inputs.itch-io-user }}/${{ inputs.itch-io-game }}:windows
+
+    - name: Upload Linux build to itch.io
+      if: contains(inputs.platforms, 'linux') && inputs.itch-io-api-key && inputs.itch-io-user && inputs.itch-io-game
+      shell: bash
+      run: |
+        export BUTLER_API_KEY="${{ inputs.itch-io-api-key }}"
+        ./butler push "${{ inputs.build-dir }}/linux/linux.tar" ${{ inputs.itch-io-user }}/${{ inputs.itch-io-game }}:linux
+
+    - name: Upload Web build to itch.io
+      if: contains(inputs.platforms, 'web') && inputs.itch-io-api-key && inputs.itch-io-user && inputs.itch-io-game
+      shell: bash
+      run: |
+        export BUTLER_API_KEY="${{ inputs.itch-io-api-key }}"
+        ./butler push "$WEB_EXPORT_DIR" ${{ inputs.itch-io-user }}/${{ inputs.itch-io-game }}:html5

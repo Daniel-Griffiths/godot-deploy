@@ -3,7 +3,14 @@
 This GitHub action builds Godot projects for Windows, macOS, Linux, Web, and also optionally deploy to itch.io.
 
 > [!NOTE]  
-> this action is currently designed to run inside of GitHub Actions `macos-latest` containers, assumes builds use GDScript and does not require compilation and linking of source plugins.
+> This action only works with projects that use GDScript and do not require linking of source plugins. Mac builds can only be created when running the actions inside of a `macos-latest` container. When using `ubuntu-latest` Mac builds will be automatically excluded.
+
+You must also have the following permissions in your action:
+
+```yaml
+permissions:
+  contents: write
+```
 
 ## Inputs
 
@@ -73,9 +80,11 @@ Build only web version:
     itch-io-game: "your-game-name"
 ```
 
-## Github release example
+## Advanced Examples
 
-If you want to upload your builds as a Github release you can use this to add the builds:
+**Create a Github Release**
+
+If you want to upload your builds as a Github release you can use this:
 
 ```yaml
 - name: Create GitHub Release
@@ -91,4 +100,19 @@ If you want to upload your builds as a Github release you can use this to add th
     draft: false
     prerelease: false
     token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**Automatically Get Godot Version**
+
+If you want to automatically infer your godot version from yout project.godot file, you can use this:
+
+```yaml
+- name: Get Godot Version
+  run: |
+    GODOT_VERSION=$(grep '^config/features' $WORKING_DIRECTORY/project.godot | cut -d "\"" -f 2)
+    echo "GODOT_VERSION=$GODOT_VERSION" >> $GITHUB_ENV
+
+- uses: Daniel-Griffiths/godot-deploy@master
+  with:
+    godot-version: ${{ env.GODOT_VERSION }}
 ```

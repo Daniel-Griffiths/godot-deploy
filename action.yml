@@ -5,7 +5,6 @@ inputs:
   godot-version:
     description: "The version of Godot to build with"
     required: true
-    default: "4.4"
   godot-channel:
     description: "The release channel (stable, beta1, rc1, etc.)"
     required: false

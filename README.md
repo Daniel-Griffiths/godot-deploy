@@ -14,15 +14,15 @@ permissions:
 
 ## Inputs
 
-| Key               | Default                     | Description                                                       |
-| ----------------- | --------------------------- | ----------------------------------------------------------------- |
-| `godot-version`   | `"4.4"`                     | **Required** The version of Godot to build with                   |
-| `godot-channel`   | `"stable"`                  | The release channel (stable, beta1, rc1, etc.)                    |
-| `build-dir`       | `"build"`                   | The chosen build directory                                        |
-| `platforms`       | `"macos,windows,linux,web"` | Platforms to build for (comma-separated: macos,windows,linux,web) |
-| `itch-io-api-key` |                             | Itch.io API key for publishing (required for itch.io upload)      |
-| `itch-io-user`    |                             | Itch.io username (required for itch.io upload)                    |
-| `itch-io-game`    |                             | Itch.io game name (required for itch.io upload)                   |
+| Key               | Required | Default                     | Description                                                  |
+| ----------------- | -------- | --------------------------- | ------------------------------------------------------------ |
+| `godot-version`   | ✅       |                             | The version of Godot to build with                           |
+| `godot-channel`   | -        | `"stable"`                  | The release channel (stable, beta1, rc1, etc.)               |
+| `build-dir`       | -        | `"build"`                   | The chosen build directory                                   |
+| `platforms`       | -        | `"macos,windows,linux,web"` | Platforms to build for (comma-separated)                     |
+| `itch-io-api-key` | -        |                             | Itch.io API key for publishing (required for itch.io upload) |
+| `itch-io-user`    | -        |                             | Itch.io username (required for itch.io upload)               |
+| `itch-io-game`    | -        |                             | Itch.io game name (required for itch.io upload)              |
 
 ## Example usage
 
@@ -31,7 +31,7 @@ Simplest usage (builds all platforms with defaults):
 ```yaml
 - uses: Daniel-Griffiths/godot-deploy@master
   with:
-    godot-version: "4.4"
+    godot-version: "4.6"
 ```
 
 Only build specific platforms:
@@ -39,7 +39,7 @@ Only build specific platforms:
 ```yaml
 - uses: Daniel-Griffiths/godot-deploy@master
   with:
-    godot-version: "4.4"
+    godot-version: "4.6"
     platforms: "macos,windows,linux"
 ```
 
@@ -59,7 +59,7 @@ With web export and itch.io upload:
 ```yaml
 - uses: Daniel-Griffiths/godot-deploy@master
   with:
-    godot-version: "4.4"
+    godot-version: "4.6"
     godot-channel: "stable"
     build-dir: "build"
     platforms: "macos,windows,linux,web"
@@ -73,7 +73,7 @@ Build only web version:
 ```yaml
 - uses: Daniel-Griffiths/godot-deploy@master
   with:
-    godot-version: "4.4"
+    godot-version: "4.6"
     platforms: "web"
     itch-io-api-key: ${{ secrets.ITCH_IO_API_KEY }}
     itch-io-user: "your-username"

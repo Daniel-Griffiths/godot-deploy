@@ -84,30 +84,6 @@ runs:
       run: echo "GODOT_EXECUTABLE=$GODOT_EXECUTABLE" >> $GITHUB_OUTPUT
       id: assign-executable
 
-    - name: Setup export directories
-      shell: bash
-      run: |
-        # Use hardcoded paths for desktop platforms, but parse Web path from export_presets.cfg
-        echo "MACOS_EXPORT_DIR=${{ inputs.build-dir }}/macos" >> $GITHUB_ENV
-        echo "WINDOWS_EXPORT_DIR=${{ inputs.build-dir }}/windows" >> $GITHUB_ENV
-        echo "LINUX_EXPORT_DIR=${{ inputs.build-dir }}/linux" >> $GITHUB_ENV
-
-        # Parse Web export path from export_presets.cfg
-        if [ -f "export_presets.cfg" ]; then
-          WEB_PATH=$(grep -A 20 'name="Web"' export_presets.cfg | grep 'export_path=' | sed 's/.*export_path="\([^"]*\)".*/\1/' | head -1 || true)
-          WEB_DIR=$(dirname "${WEB_PATH:-${{ inputs.build-dir }}/web/index.html}")
-          echo "WEB_EXPORT_DIR=$WEB_DIR" >> $GITHUB_ENV
-          echo "Web export directory: $WEB_DIR (from: $WEB_PATH)"
-        else
-          echo "WEB_EXPORT_DIR=${{ inputs.build-dir }}/web" >> $GITHUB_ENV
-          echo "No export_presets.cfg found, using default web path"
-        fi
-
-        echo "Using export directories:"
-        echo "  macOS: ${{ inputs.build-dir }}/macos"
-        echo "  Windows: ${{ inputs.build-dir }}/windows" 
-        echo "  Linux: ${{ inputs.build-dir }}/linux"
-
     - name: Open Godot editor for reimport
       shell: bash
       run: $GODOT_EXECUTABLE --import --headless --verbose
@@ -117,7 +93,7 @@ runs:
       shell: bash
       run: |
         mkdir -p ${{ inputs.build-dir }}/macos
-        $GODOT_EXECUTABLE --export-release macOS --headless
+        $GODOT_EXECUTABLE --export-release macOS ${{ inputs.build-dir }}/macos/game.app --headless
         [ "$(ls -A ${{ inputs.build-dir }}/macos)" ]
 
     - name: Compress macOS build (to preserve permissions)
@@ -132,7 +108,7 @@ runs:
       shell: bash
       run: |
         mkdir -p ${{ inputs.build-dir }}/windows
-        $GODOT_EXECUTABLE --export-release Windows --headless
+        $GODOT_EXECUTABLE --export-release Windows ${{ inputs.build-dir }}/windows/game.exe --headless
         [ "$(ls -A ${{ inputs.build-dir }}/windows)" ]
 
     - name: Compress Windows build
@@ -147,7 +123,7 @@ runs:
       shell: bash
       run: |
         mkdir -p ${{ inputs.build-dir }}/linux
-        $GODOT_EXECUTABLE --export-release Linux --headless
+        $GODOT_EXECUTABLE --export-release Linux ${{ inputs.build-dir }}/linux/game.x86_64 --headless
         [ "$(ls -A ${{ inputs.build-dir }}/linux)" ]
 
     - name: Compress Linux build (to preserve permissions)
@@ -161,16 +137,9 @@ runs:
       if: contains(env.FILTERED_PLATFORMS, 'web')
       shell: bash
       run: |
-        mkdir -p "$WEB_EXPORT_DIR"
-        $GODOT_EXECUTABLE --export-release Web --headless
-        [ "$(ls -A "$WEB_EXPORT_DIR")" ]
-
-    - name: Compress Web build
-      if: contains(env.FILTERED_PLATFORMS, 'web')
-      shell: bash
-      run: |
-        cd "$WEB_EXPORT_DIR"
-        zip -r ./web.zip ./*
+        mkdir -p ${{ inputs.build-dir }}/web
+        $GODOT_EXECUTABLE --export-release Web ${{ inputs.build-dir }}/web/index.html --headless
+        [ "$(ls -A ${{ inputs.build-dir }}/web)" ]
 
     - name: Install butler for itch.io upload
       if: inputs.itch-io-api-key && inputs.itch-io-user && inputs.itch-io-game
@@ -211,4 +180,4 @@ runs:
       shell: bash
       run: |
         export BUTLER_API_KEY="${{ inputs.itch-io-api-key }}"
-        ./butler push "$WEB_EXPORT_DIR" ${{ inputs.itch-io-user }}/${{ inputs.itch-io-game }}:html5
+        ./butler push "${{ inputs.build-dir }}/web" ${{ inputs.itch-io-user }}/${{ inputs.itch-io-game }}:html5

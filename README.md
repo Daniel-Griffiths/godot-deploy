@@ -95,7 +95,7 @@ If you want to upload your builds as a Github release you can use this:
     name: Latest Build
     files: |
       build/windows/windows.zip
-      build/linux/linux.tar
+      build/linux/linux.tar.gz
       build/macos/macos.tar
     draft: false
     prerelease: false

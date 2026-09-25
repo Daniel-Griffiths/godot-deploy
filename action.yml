@@ -126,12 +126,12 @@ runs:
         $GODOT_EXECUTABLE --export-release Linux ${{ inputs.build-dir }}/linux/game.x86_64 --headless
         [ "$(ls -A ${{ inputs.build-dir }}/linux)" ]
 
-    - name: Compress Linux build (to preserve permissions)
+    - name: Compress Linux build (gzipped tar: small, and keeps the executable bit)
       if: contains(env.FILTERED_PLATFORMS, 'linux')
       shell: bash
       run: |
         cd ${{ inputs.build-dir }}/linux
-        tar -cvf ./linux.tar ./*
+        tar -czvf ./linux.tar.gz ./*
 
     - name: Build Web application
       if: contains(env.FILTERED_PLATFORMS, 'web')
@@ -173,7 +173,7 @@ runs:
       shell: bash
       run: |
         export BUTLER_API_KEY="${{ inputs.itch-io-api-key }}"
-        ./butler push "${{ inputs.build-dir }}/linux/linux.tar" ${{ inputs.itch-io-user }}/${{ inputs.itch-io-game }}:linux
+        ./butler push "${{ inputs.build-dir }}/linux/linux.tar.gz" ${{ inputs.itch-io-user }}/${{ inputs.itch-io-game }}:linux
 
     - name: Upload Web build to itch.io
       if: contains(env.FILTERED_PLATFORMS, 'web') && inputs.itch-io-api-key && inputs.itch-io-user && inputs.itch-io-game

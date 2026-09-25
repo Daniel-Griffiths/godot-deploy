@@ -126,7 +126,7 @@ runs:
         $GODOT_EXECUTABLE --export-release Linux ${{ inputs.build-dir }}/linux/game.x86_64 --headless
         [ "$(ls -A ${{ inputs.build-dir }}/linux)" ]
 
-    - name: Compress Linux build (gzipped tar: small, and keeps the executable bit)
+    - name: Compress Linux build (gzipped tar, to keep the executable bit)
       if: contains(env.FILTERED_PLATFORMS, 'linux')
       shell: bash
       run: |

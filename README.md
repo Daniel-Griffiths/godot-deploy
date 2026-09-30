@@ -88,7 +88,7 @@ If you want to upload your builds as a Github release you can use this:
 
 ```yaml
 - name: Create GitHub Release
-  uses: softprops/action-gh-release@v1
+  uses: softprops/action-gh-release@v3
   if: github.ref == 'refs/heads/master'
   with:
     tag_name: latest

@@ -74,15 +74,21 @@ runs:
         else
           GODOT_TEMPLATES_DIR="$HOME/.local/share/godot/export_templates"
         fi
-        curl -L -o ./godot-templates.zip "https://github.com/godotengine/godot-builds/releases/download/${{ inputs.godot-version }}-${{ inputs.godot-channel }}/Godot_v${{ inputs.godot-version }}-${{ inputs.godot-channel }}_export_templates.tpz"
-        unzip ./godot-templates.zip
-        mkdir -p "$GODOT_TEMPLATES_DIR"
-        mv ./templates "$GODOT_TEMPLATES_DIR/${{ inputs.godot-version }}.${{ inputs.godot-channel }}"
+        python3 "${{ github.action_path }}/scripts/fetch_templates.py" \
+          "${{ inputs.godot-version }}" "${{ inputs.godot-channel }}" "$FILTERED_PLATFORMS" export_presets.cfg \
+          "$GODOT_TEMPLATES_DIR/${{ inputs.godot-version }}.${{ inputs.godot-channel }}"
 
     - name: Report back the executable location
       shell: bash
       run: echo "GODOT_EXECUTABLE=$GODOT_EXECUTABLE" >> $GITHUB_OUTPUT
       id: assign-executable
+
+    - name: Restore imported assets
+      uses: actions/cache@v4
+      with:
+        path: .godot/imported
+        key: godot-import-${{ runner.os }}-${{ inputs.godot-version }}-${{ inputs.godot-channel }}-${{ hashFiles('**/*.import') }}-${{ hashFiles('**/*.png', '**/*.jpg', '**/*.webp', '**/*.svg', '**/*.wav', '**/*.ogg', '**/*.mp3', '**/*.glb', '**/*.gltf', '**/*.ttf', '**/*.otf') }}
+        restore-keys: godot-import-${{ runner.os }}-${{ inputs.godot-version }}-${{ inputs.godot-channel }}-
 
     - name: Open Godot editor for reimport
       shell: bash
